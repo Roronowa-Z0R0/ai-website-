@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Recognition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.14.0/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow-models/mobilenet/1.0.0/index.min.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .upload-container {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        #imagePreview {
+            max-width: 100%;
+            max-height: 400px;
+            margin: 20px 0;
+        }
+        
+        #results {
+            text-align: left;
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        
+        .prediction {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .confidence-bar {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .confidence-level {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Image Recognition</h1>
+    
+    <div class="upload-container">
+        <input type="file" id="imageUpload" accept="image/*" style="display: none">
+        <button onclick="document.getElementById('imageUpload').click()">Upload Image</button>
+        <p>or drag and drop an image here</p>
+    </div>
+    
+    <img id="imagePreview" style="display: none">
+    <div id="results"></div>
+
+    <script>
+        let model = null;
+        
+        // Load MobileNet model
+        async function loadModel() {
+            try {
+                model = await mobilenet.load();
+                console.log('Model loaded successfully');
+            } catch (error) {
+                console.error('Error loading model:', error);
+            }
+        }
+        
+        // Initialize the model
+        loadModel();
+        
+        // Handle file upload
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+        
+        // Handle drag and drop
+        const dropZone = document.querySelector('.upload-container');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#4CAF50';
+        });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            const file = e.dataTransfer.files[0];
+            handleImage(file);
+        });
+        
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            handleImage(file);
+        }
+        
+        function handleImage(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                
+                reader.onload = async function(e) {
+                    const img = document.getElementById('imagePreview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    
+                    // Classify the image once it's loaded
+                    img.onload = () => classifyImage(img);
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        async function classifyImage(imgElement) {
+            if (!model) {
+                console.log('Model not loaded yet');
+                return;
+            }
+            
+            try {
+                const predictions = await model.classify(imgElement);
+                displayResults(predictions);
+            } catch (error) {
+                console.error('Error classifying image:', error);
+            }
+        }
+        
+        function displayResults(predictions) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Results:</h2>';
+            
+            predictions.forEach(prediction => {
+                const confidence = Math.round(prediction.probability * 100);
+                const predictionDiv = document.createElement('div');
+                predictionDiv.className = 'prediction';
+                predictionDiv.innerHTML = `
+                    <div>${prediction.className}</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-level" style="width: ${confidence}%"></div>
+                    </div>
+                    <div>${confidence}% confidence</div>
+                `;
+                resultsDiv.appendChild(predictionDiv);
+            });
+        }
+    </script>
+</body>
+</html>
